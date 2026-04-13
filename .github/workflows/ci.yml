@@ -1,0 +1,45 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Build Docker image
+      run: docker build -t cdek-sre-web-service .
+
+    - name: Start container
+      run: |
+        docker run -d -p 8000:8000 --name test-container cdek-sre-web-service
+        sleep 10
+
+    - name: Test root endpoint
+      run: |
+        response=$(curl -s http://localhost:8000/)
+        if [ "$response" != "OK" ]; then
+          echo "Test failed: expected 'OK', got '$response'"
+          exit 1
+        fi
+
+    - name: Test metrics endpoint
+      run: |
+        metrics=$(curl -s http://localhost:8000/metrics)
+        if ! echo "$metrics" | grep -q "http_requests_total"; then
+          echo "Metrics test failed: http_requests_total not found"
+          exit 1
+        fi
+        if ! echo "$metrics" | grep -q "http_errors_total"; then
+          echo "Metrics test failed: http_errors_total not found"
+          exit 1
+        fi
+
+    - name: Stop container
+      if: always()
+      run: docker stop test-container && docker rm test-container
