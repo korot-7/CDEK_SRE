@@ -9,7 +9,8 @@ http_errors_total = 0
 def root():
     global http_requests_total
     http_requests_total += 1
-    return "OK"
+    data = "OK"
+    return Response(content=data, media_type="text/plain")
 
 @app.get("/metrics")
 def metrics():
